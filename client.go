@@ -182,6 +182,8 @@ type marathonClient struct {
 	listeners map[EventsChannel]EventsChannelContext
 	// a custom logger for debug log messages
 	debugLog *log.Logger
+	//expose subscription errors to applications
+	SubscriptionErrors chan error
 }
 
 // NewClient creates a new marathon client
@@ -209,11 +211,12 @@ func NewClient(config Config) (Marathon, error) {
 	}
 
 	return &marathonClient{
-		config:     config,
-		listeners:  make(map[EventsChannel]EventsChannelContext),
-		hosts:      hosts,
-		httpClient: config.HTTPClient,
-		debugLog:   log.New(debugLogOutput, "", 0),
+		config:             config,
+		listeners:          make(map[EventsChannel]EventsChannelContext),
+		hosts:              hosts,
+		httpClient:         config.HTTPClient,
+		debugLog:           log.New(debugLogOutput, "", 0),
+		SubscriptionErrors: make(chan error),
 	}, nil
 }
 
