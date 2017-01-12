@@ -127,6 +127,7 @@ type Marathon interface {
 	Subscribe(string) error
 	// Unsubscribe a callback URL
 	Unsubscribe(string) error
+	SubscriptionErrors() chan error
 
 	// --- QUEUE ---
 	// get marathon launch queue
@@ -181,7 +182,8 @@ type marathonClient struct {
 	// a map of service you wish to listen to
 	listeners map[EventsChannel]EventsChannelContext
 	// a custom logger for debug log messages
-	debugLog *log.Logger
+	debugLog           *log.Logger
+	subscriptionErrors chan error
 }
 
 // NewClient creates a new marathon client

@@ -17,6 +17,7 @@ limitations under the License.
 package marathon
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -177,9 +178,11 @@ func (r *marathonClient) registerSSESubscription() error {
 	if err != nil {
 		return err
 	}
-
+	ctx := context.WithValue(request.Context(), "timeout", 2*time.Second)
+	request = request.WithContext(ctx)
 	// Try to connect to stream, reusing the http client settings
 	stream, err := eventsource.SubscribeWith("", r.httpClient, request)
+	r.subscriptionErrors = stream.Errors
 	if err != nil {
 		return err
 	}
@@ -187,14 +190,19 @@ func (r *marathonClient) registerSSESubscription() error {
 	go func() {
 		for {
 			select {
-			case ev := <-stream.Events:
-				if err := r.handleEvent(ev.Data()); err != nil {
-					// TODO let the user handle this error instead of logging it here
-					r.debugLog.Printf("registerSSESubscription(): failed to handle event: %v\n", err)
+			case ev, ok := <-stream.Events:
+				if ok {
+					if err := r.handleEvent(ev.Data()); err != nil {
+						// TODO let the user handle this error instead of logging it here
+						r.debugLog.Printf("registerSSESubscription(): failed to handle event: %v\n", err)
+					}
 				}
-			case err := <-stream.Errors:
-				// TODO let the user handle this error instead of logging it here
-				r.debugLog.Printf("registerSSESubscription(): failed to receive event: %v\n", err)
+
+			case err, ok := <-stream.Errors:
+				if ok {
+					// TODO let the user handle this error instead of logging it here
+					r.debugLog.Printf("registerSSESubscription(): failed to receive event: %v\n", err)
+				}
 			}
 		}
 	}()
@@ -290,4 +298,8 @@ func (r *marathonClient) handleCallbackEvent(writer http.ResponseWriter, request
 		// TODO should this return a 500?
 		r.debugLog.Printf("handleCallbackEvent(): failed to handle event: %v\n", err)
 	}
+}
+
+func (r *marathonClient) SubscriptionErrors() chan error {
+	return r.subscriptionErrors
 }
