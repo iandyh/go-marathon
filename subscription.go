@@ -27,7 +27,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/donovanhide/eventsource"
+	"github.com/iandyh/eventsource"
 )
 
 // Subscriptions is a collection to urls that marathon is implementing a callback on
