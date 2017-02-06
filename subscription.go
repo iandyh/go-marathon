@@ -191,12 +191,16 @@ func (r *marathonClient) registerSSESubscription() error {
 						// TODO let the user handle this error instead of logging it here
 						r.debugLog.Printf("registerSSESubscription(): failed to handle event: %v\n", err)
 					}
+				} else {
+					r.subscribedToSSE = false
 				}
 
 			case err, ok := <-stream.Errors:
 				if ok {
 					// TODO let the user handle this error instead of logging it here
 					r.debugLog.Printf("registerSSESubscription(): failed to receive event: %v\n", err)
+				} else {
+					r.subscribedToSSE = false
 				}
 			}
 		}
