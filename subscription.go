@@ -177,10 +177,11 @@ func (r *marathonClient) registerSSESubscription() error {
 	request = request.WithContext(ctx)
 	// Try to connect to stream, reusing the http client settings
 	stream, err := eventsource.SubscribeWith("", r.httpClient, request)
-	r.subscriptionErrors = stream.Errors
+
 	if err != nil {
 		return err
 	}
+	r.subscriptionErrors = stream.Errors
 
 	go func() {
 		for {
