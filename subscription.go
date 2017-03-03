@@ -45,6 +45,15 @@ func (r *marathonClient) Subscriptions() (*Subscriptions, error) {
 	return subscriptions, nil
 }
 
+func (r *marathonClient) ListenEvents() (chan *Event, error) {
+	r.events = make(chan *Event)
+	if err := r.registerSSESubscription(); err != nil {
+		return nil, err
+	}
+
+	return r.events, nil
+}
+
 // AddEventsListener adds your self as a listener to events from Marathon
 //		channel:	a EventsChannel used to receive event on
 func (r *marathonClient) AddEventsListener(filter int) (EventsChannel, error) {
@@ -267,6 +276,11 @@ func (r *marathonClient) handleEvent(content string) error {
 	err = json.NewDecoder(strings.NewReader(content)).Decode(event.Event)
 	if err != nil {
 		return fmt.Errorf("failed to decode the event, id: %d, error: %s", event.ID, err)
+	}
+
+	if r.events != nil {
+		r.events <- event
+		return nil
 	}
 
 	r.RLock()
