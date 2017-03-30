@@ -163,9 +163,25 @@ func (r *marathonClient) registerCallbackSubscription() error {
 	return nil
 }
 
+var sselock sync.RWMutex
+
+func (r *marathonClient) setSubscribedToSSE(t bool) {
+	sselock.Lock()
+	defer sselock.Unlock()
+
+	r.subscribedToSSE = t
+}
+
+func (r *marathonClient) getSubscribedToSSE() bool {
+	sselock.RLock()
+	defer sselock.RUnlock()
+
+	return r.subscribedToSSE
+}
+
 func (r *marathonClient) registerSSESubscription() error {
 	// Prevent multiple SSE subscriptions
-	if r.subscribedToSSE {
+	if r.getSubscribedToSSE() {
 		return nil
 	}
 
@@ -184,6 +200,7 @@ func (r *marathonClient) registerSSESubscription() error {
 	r.subscriptionErrors = stream.Errors
 
 	go func() {
+		defer func() { r.setSubscribedToSSE(false) }()
 		for {
 			select {
 			case ev, ok := <-stream.Events:
@@ -193,7 +210,7 @@ func (r *marathonClient) registerSSESubscription() error {
 						r.debugLog.Printf("registerSSESubscription(): failed to handle event: %v\n", err)
 					}
 				} else {
-					r.subscribedToSSE = false
+					return
 				}
 
 			case err, ok := <-stream.Errors:
@@ -201,13 +218,13 @@ func (r *marathonClient) registerSSESubscription() error {
 					// TODO let the user handle this error instead of logging it here
 					r.debugLog.Printf("registerSSESubscription(): failed to receive event: %v\n", err)
 				} else {
-					r.subscribedToSSE = false
+					return
 				}
 			}
 		}
 	}()
 
-	r.subscribedToSSE = true
+	r.setSubscribedToSSE(true)
 	return nil
 }
 
