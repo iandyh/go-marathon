@@ -185,7 +185,7 @@ func (r *marathonClient) registerSSESubscription() error {
 		return nil
 	}
 
-	request, _, err := r.buildAPIRequest("GET", marathonAPIEventStream, nil)
+	request, member, err := r.buildAPIRequest("GET", marathonAPIEventStream, nil)
 	if err != nil {
 		return err
 	}
@@ -195,6 +195,7 @@ func (r *marathonClient) registerSSESubscription() error {
 	stream, err := eventsource.SubscribeWith("", r.httpClient, request)
 
 	if err != nil {
+		r.hosts.markDown(member)
 		return err
 	}
 	r.subscriptionErrors = stream.Errors
