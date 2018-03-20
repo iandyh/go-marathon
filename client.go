@@ -308,21 +308,13 @@ func (r *marathonClient) apiCall(method, url string, body, result interface{}) e
 	}
 }
 
-// buildAPIRequest creates a default API request
-func (r *marathonClient) buildAPIRequest(method, uri string, reader io.Reader) (request *http.Request, member string, err error) {
-	// Grab a member from the cluster
-	member, err = r.hosts.getMember()
-	if err != nil {
-		return nil, "", ErrMarathonDown
-	}
-
-	// Create the endpoint URL
+// we drifted away from the upstream implementation here
+// we should fix the conflicts at some point
+func (r *marathonClient) makeRequest(method, member, uri string, reader io.Reader) (request *http.Request, err error) {
 	url := fmt.Sprintf("%s/%s", member, uri)
-
-	// Make the http request to Marathon
 	request, err = http.NewRequest(method, url, reader)
 	if err != nil {
-		return nil, member, err
+		return nil, err
 	}
 
 	// Add any basic auth and the content headers
@@ -337,7 +329,36 @@ func (r *marathonClient) buildAPIRequest(method, uri string, reader io.Reader) (
 	request.Header.Add("Content-Type", "application/json")
 	request.Header.Add("Accept", "application/json")
 
-	return request, member, nil
+	return request, nil
+}
+
+// buildAPIRequest creates a default API request
+func (r *marathonClient) buildAPIRequest(method, uri string, reader io.Reader) (request *http.Request, member string, err error) {
+	// Grab a member from the cluster
+	member, err = r.hosts.getMember()
+	if err != nil {
+		return nil, "", ErrMarathonDown
+	}
+	req, err := r.makeRequest(method, member, uri, reader)
+	if err != nil {
+		return nil, "", err
+	}
+	return req, member, nil
+}
+
+func (r *marathonClient) subscribeToMaster() (request *http.Request, master string, err error) {
+	master, err = r.Leader()
+
+	// use http just for now
+	masterHost := fmt.Sprintf("http://%s", master)
+	if err != nil {
+		return nil, "", err
+	}
+	req, err := r.makeRequest("GET", masterHost, marathonAPIEventStream, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	return req, master, nil
 }
 
 var oneLogLineRegex = regexp.MustCompile(`(?m)^\s*`)
